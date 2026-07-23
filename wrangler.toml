@@ -1,0 +1,6 @@
+name = "loreal-routine"
+main = "worker.js"
+compatibility_date = "2026-07-23"
+
+[observability]
+enabled = true

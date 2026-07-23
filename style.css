@@ -11,6 +11,7 @@ body {
   color: #333;
   display: flex;
   justify-content: center;
+  background: #fff;
 }
 
 .page-wrapper {
@@ -40,22 +41,52 @@ body {
 .search-section {
   margin: 30px 0;
   display: flex;
+  gap: 12px;
+  align-items: stretch;
+  flex-wrap: wrap;
 }
 
+.search-section input,
 .search-section select {
-  width: 100%;
+  flex: 1 1 260px;
   padding: 16px;
   font-size: 18px;
   border: 2px solid #000;
   border-radius: 8px;
-  cursor: pointer;
   background-color: white;
   font-weight: 500;
 }
 
+.search-section input {
+  cursor: text;
+}
+
+.search-section select {
+  cursor: pointer;
+}
+
+.search-section input:focus,
 .search-section select:focus {
   outline: none;
   border-color: #666;
+}
+
+.rtl-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  border: 2px solid #000;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  background: #fff;
+  white-space: nowrap;
+}
+
+.rtl-toggle input {
+  width: 18px;
+  height: 18px;
 }
 
 /* chat section */
@@ -75,10 +106,33 @@ body {
   padding: 20px;
   font-size: 18px;
   line-height: 1.5;
-  height: 250px;
+  min-height: 250px;
+  max-height: 420px;
   overflow-y: auto;
   background: #fafafa;
   margin-bottom: 20px;
+}
+
+.chat-message {
+  margin-bottom: 16px;
+  padding: 14px;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.chat-message strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.chat-message p {
+  white-space: pre-wrap;
+}
+
+.chat-message a {
+  color: #0057b8;
+  text-decoration: underline;
+  word-break: break-word;
 }
 
 /* placeholder message */
@@ -180,12 +234,30 @@ body {
 
 .product-card {
   flex: 0 1 calc(33.333% - 14px);
-  border: 1px solid #ccc;
+  border: 2px solid #ccc;
   padding: 15px;
-  border-radius: 4px;
+  border-radius: 8px;
   display: flex;
   gap: 15px;
   min-height: 160px;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    transform 0.2s;
+}
+
+.product-card:hover,
+.product-card:focus-visible {
+  border-color: #000;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.product-card.selected {
+  border-color: #000;
+  background: #f4f4f4;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 .product-card img {
@@ -199,7 +271,7 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   min-height: 110px;
 }
 
@@ -211,6 +283,53 @@ body {
 .product-card p {
   font-size: 14px;
   color: #666;
+}
+
+.product-brand {
+  margin-bottom: 10px;
+}
+
+.product-card button,
+.product-card summary,
+#selectedProductsList button,
+.secondary-btn {
+  font: inherit;
+}
+
+.product-select-btn,
+.secondary-btn,
+#selectedProductsList button {
+  border: 1px solid #000;
+  background: #fff;
+  border-radius: 999px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.product-select-btn {
+  align-self: flex-start;
+  margin-top: 12px;
+}
+
+.product-card.selected .product-select-btn {
+  background: #000;
+  color: #fff;
+}
+
+.product-details {
+  margin-top: 12px;
+  width: 100%;
+}
+
+.product-details summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.product-details p {
+  margin-top: 10px;
+  line-height: 1.6;
 }
 
 /* selected products */
@@ -230,6 +349,16 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+#selectedProductsList button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.secondary-btn {
+  margin-top: 16px;
 }
 
 .generate-btn {
@@ -252,4 +381,46 @@ body {
 
 .generate-btn i {
   margin-right: 8px;
+}
+
+.generate-btn:disabled,
+.secondary-btn:disabled,
+.chat-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+[dir="rtl"] body {
+  text-align: right;
+}
+
+[dir="rtl"] .search-section {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .product-card {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .chat-form {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .chat-message,
+[dir="rtl"] .selected-products,
+[dir="rtl"] .chatbox,
+[dir="rtl"] .product-info,
+[dir="rtl"] .placeholder-message {
+  text-align: right;
+}
+
+[dir="rtl"] .generate-btn i {
+  margin-right: 0;
+  margin-left: 8px;
+}
+
+@media (max-width: 768px) {
+  .product-card {
+    flex: 1 1 100%;
+  }
 }
