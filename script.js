@@ -12,7 +12,7 @@ const userInput = document.getElementById("userInput");
 const sendButton = document.getElementById("sendBtn");
 
 /* Backend API URL for routine generation (no key in frontend code) */
-const BACKEND_URL = "http://localhost:8787/chat";
+const BACKEND_URL = "/chat";
 const PRODUCT_FALLBACK_IMAGE = "img/loreal-logo.png";
 
 /* Save keys so selections and layout preferences stay after a refresh */

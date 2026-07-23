@@ -4,10 +4,26 @@
 */
 
 const http = require("http");
+const fs = require("fs");
+const path = require("path");
 
 const PORT = Number(process.env.PORT) || 8787;
 const MISTRAL_URL = "https://api.mistral.ai/v1/chat/completions";
 const DEFAULT_MODEL = "mistral-small-latest";
+const PUBLIC_DIR = __dirname;
+
+const CONTENT_TYPES = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "application/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".svg": "image/svg+xml",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+};
 
 /* Check Node version */
 if (typeof fetch === "undefined") {
@@ -62,7 +78,54 @@ function readRequestBody(request) {
   });
 }
 
+/*
+  Send plain text with status code.
+*/
+function sendText(response, statusCode, message) {
+  response.writeHead(statusCode, {
+    "Content-Type": "text/plain; charset=utf-8",
+  });
+  response.end(message);
+}
+
+/*
+  Serve frontend files from this project folder.
+  This keeps UI and API on one origin: http://localhost:8787
+*/
+function serveStaticFile(requestPath, response) {
+  const normalizedPath = requestPath === "/" ? "/index.html" : requestPath;
+  const safePath = path.normalize(normalizedPath).replace(/^\/+/, "");
+  const fullPath = path.join(PUBLIC_DIR, safePath);
+
+  if (!fullPath.startsWith(PUBLIC_DIR)) {
+    sendText(response, 403, "Forbidden");
+    return;
+  }
+
+  fs.readFile(fullPath, (error, fileBuffer) => {
+    if (error) {
+      if (error.code === "ENOENT") {
+        sendText(response, 404, "Not Found");
+        return;
+      }
+
+      sendText(response, 500, "Server error while reading file.");
+      return;
+    }
+
+    const extension = path.extname(fullPath).toLowerCase();
+    const contentType = CONTENT_TYPES[extension] || "application/octet-stream";
+
+    response.writeHead(200, {
+      "Content-Type": contentType,
+    });
+    response.end(fileBuffer);
+  });
+}
+
 const server = http.createServer(async (request, response) => {
+  const requestUrl = new URL(request.url, `http://localhost:${PORT}`);
+
   /* Allow browser preflight checks */
   if (request.method === "OPTIONS") {
     response.writeHead(204, {
@@ -74,8 +137,14 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
-  /* Only one endpoint is needed for this project */
-  if (request.url !== "/chat") {
+  /* Serve frontend pages and assets from the same server */
+  if (request.method === "GET" || request.method === "HEAD") {
+    serveStaticFile(requestUrl.pathname, response);
+    return;
+  }
+
+  /* Only one API endpoint is needed for chat */
+  if (requestUrl.pathname !== "/chat") {
     sendJson(response, 404, { error: "Route not found. Use POST /chat." });
     return;
   }

@@ -6,7 +6,7 @@ Users will be able to browse real L’Oréal brand products, select the ones the
 
 ## Backend setup (no Cloudflare)
 
-This project sends the frontend `messages` array to a local backend server. The backend talks to Mistral, so the API key stays off the frontend.
+This project sends the frontend `messages` array to a local backend server. The backend talks to Mistral, so the API key stays off the frontend. The same server also serves the frontend files, so chat requests use the same origin.
 
 1. Set your Mistral key as an environment variable:
 
@@ -20,10 +20,16 @@ export MISTRAL_API_KEY="your_mistral_key_here"
 node server.js
 ```
 
+Then open the app from the same server URL:
+
+```text
+http://localhost:8787
+```
+
 3. Keep `script.js` set to:
 
 ```js
-const BACKEND_URL = "http://localhost:8787/chat";
+const BACKEND_URL = "/chat";
 ```
 
 The backend expects a JSON request like this:
