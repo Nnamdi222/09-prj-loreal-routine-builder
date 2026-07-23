@@ -11,8 +11,8 @@ const chatWindow = document.getElementById("chatWindow");
 const userInput = document.getElementById("userInput");
 const sendButton = document.getElementById("sendBtn");
 
-/* Class-hosted Cloudflare Worker URL for routine generation */
-const WORKER_URL = "https://tiny-river-65b8.eneje22.workers.dev/";
+/* Backend API URL for routine generation (no key in frontend code) */
+const BACKEND_URL = "http://localhost:8787/chat";
 
 /* Save keys so selections and layout preferences stay after a refresh */
 const STORAGE_KEYS = {
@@ -364,12 +364,12 @@ function clearSelectedProducts() {
   updateProductViews();
 }
 
-/* Send the full messages array to the class-hosted worker */
+/* Send the full messages array to the backend proxy */
 async function getAssistantReply() {
   let response;
 
   try {
-    response = await fetch(WORKER_URL, {
+    response = await fetch(BACKEND_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -378,7 +378,7 @@ async function getAssistantReply() {
     });
   } catch (error) {
     throw new Error(
-      "The chatbot could not reach the Cloudflare Worker. Make sure the Worker is deployed and the URL in script.js is correct.",
+      "The chatbot could not reach the backend API. Make sure server.js is running and the BACKEND_URL in script.js is correct.",
     );
   }
 
@@ -414,12 +414,12 @@ async function getAssistantReply() {
 
   if (fallbackText.trim()) {
     throw new Error(
-      `${fallbackText.trim()} The deployed Cloudflare Worker is still returning the default response instead of OpenAI chat JSON. Deploy worker.js with Wrangler and keep the same workers.dev URL or update script.js to the new URL.`,
+      `${fallbackText.trim()} The backend API is not returning chat completion JSON. Check server.js logs and confirm your Mistral key is set in the server environment.`,
     );
   }
 
   throw new Error(
-    "The Cloudflare Worker responded, but it did not return the expected routine data.",
+    "The backend API responded, but it did not return the expected routine data.",
   );
 }
 

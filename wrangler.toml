@@ -1,6 +1,0 @@
-name = "tiny-river-65b8"
-main = "worker.js"
-compatibility_date = "2026-07-23"
-
-[observability]
-enabled = true

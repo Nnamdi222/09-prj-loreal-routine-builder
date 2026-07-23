@@ -4,29 +4,29 @@ L’Oréal is expanding what’s possible with AI, and now your chatbot is getti
 
 Users will be able to browse real L’Oréal brand products, select the ones they want, and generate a personalized routine using AI. They can also ask follow-up questions about their routine—just like chatting with a real advisor.
 
-## Cloudflare Worker setup
+## Backend setup (no Cloudflare)
 
-This project sends the frontend `messages` array to a Cloudflare Worker. The Worker talks to OpenAI, so the API key stays off the frontend.
+This project sends the frontend `messages` array to a local backend server. The backend talks to Mistral, so the API key stays off the frontend.
 
-1. Create or open your Cloudflare Worker project.
-2. Use the files in this repo:
-   - `worker.js`
-   - `wrangler.toml`
-3. Add your OpenAI key as a Worker secret:
+1. Set your Mistral key as an environment variable:
 
 ```bash
-wrangler secret put OPENAI_API_KEY
+export MISTRAL_API_KEY="your_mistral_key_here"
 ```
 
-4. Deploy the Worker:
+2. Start the backend server in this repo:
 
 ```bash
-wrangler deploy
+node server.js
 ```
 
-5. Copy the deployed `https://...workers.dev/` URL into `script.js` as `WORKER_URL`.
+3. Keep `script.js` set to:
 
-The Worker expects a JSON request like this:
+```js
+const BACKEND_URL = "http://localhost:8787/chat";
+```
+
+The backend expects a JSON request like this:
 
 ```json
 {
@@ -43,7 +43,7 @@ The Worker expects a JSON request like this:
 }
 ```
 
-The Worker returns the standard OpenAI chat completion response, so the frontend can keep reading:
+The backend returns a standard chat completion response, so the frontend can keep reading:
 
 ```js
 data.choices[0].message.content;
