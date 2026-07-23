@@ -1,15 +1,33 @@
 /*
   Simple backend proxy for Mistral chat completions.
-  Why this file exists:
-  - Keeps your API key on the server
-  - Lets the frontend send only the messages array
+  Keeps your API key on the server.
 */
 
 const http = require("http");
 
-const PORT = 8787;
+const PORT = Number(process.env.PORT) || 8787;
 const MISTRAL_URL = "https://api.mistral.ai/v1/chat/completions";
 const DEFAULT_MODEL = "mistral-small-latest";
+
+/* Check Node version */
+if (typeof fetch === "undefined") {
+  console.error(
+    "ERROR: Your version of Node.js does not support fetch(). Please use Node.js 18 or newer.",
+  );
+  process.exit(1);
+}
+
+/* Check API key at startup so setup issues are visible right away */
+if (!process.env.MISTRAL_API_KEY) {
+  console.error(
+    "ERROR: MISTRAL_API_KEY not found. Set it in your terminal before starting the server.",
+  );
+}
+
+console.log(
+  "Mistral API Key Loaded:",
+  process.env.MISTRAL_API_KEY ? "YES" : "NO",
+);
 
 /*
   Send JSON with CORS headers so the browser can call this endpoint.
@@ -40,9 +58,7 @@ function readRequestBody(request) {
       resolve(body);
     });
 
-    request.on("error", (error) => {
-      reject(error);
-    });
+    request.on("error", reject);
   });
 }
 
@@ -65,7 +81,7 @@ const server = http.createServer(async (request, response) => {
   }
 
   if (request.method !== "POST") {
-    sendJson(response, 405, { error: "Only POST is supported on /chat." });
+    sendJson(response, 405, { error: "Only POST requests are supported." });
     return;
   }
 
@@ -73,7 +89,7 @@ const server = http.createServer(async (request, response) => {
 
   if (!apiKey) {
     sendJson(response, 500, {
-      error: "Server is missing MISTRAL_API_KEY environment variable.",
+      error: "Server is missing MISTRAL_API_KEY.",
     });
     return;
   }
@@ -84,13 +100,13 @@ const server = http.createServer(async (request, response) => {
     const rawBody = await readRequestBody(request);
     parsedBody = JSON.parse(rawBody || "{}");
   } catch (error) {
-    sendJson(response, 400, { error: "Request body must be valid JSON." });
+    sendJson(response, 400, { error: "Invalid JSON." });
     return;
   }
 
   if (!Array.isArray(parsedBody.messages) || parsedBody.messages.length === 0) {
     sendJson(response, 400, {
-      error: "Please send a non-empty messages array.",
+      error: "A non-empty messages array is required.",
     });
     return;
   }
@@ -101,6 +117,8 @@ const server = http.createServer(async (request, response) => {
   };
 
   try {
+    console.log("Sending request to Mistral...");
+
     const mistralResponse = await fetch(MISTRAL_URL, {
       method: "POST",
       headers: {
@@ -110,26 +128,32 @@ const server = http.createServer(async (request, response) => {
       body: JSON.stringify(upstreamBody),
     });
 
-    const responseText = await mistralResponse.text();
-    let responseJson;
+    const text = await mistralResponse.text();
+    let json;
 
     try {
-      responseJson = JSON.parse(responseText);
+      json = JSON.parse(text);
     } catch (error) {
       sendJson(response, 502, {
-        error: "Mistral returned an invalid JSON response.",
+        error: "Mistral returned invalid JSON.",
+        raw: text,
       });
       return;
     }
 
-    sendJson(response, mistralResponse.status, responseJson);
+    console.log("Mistral Status:", mistralResponse.status);
+
+    sendJson(response, mistralResponse.status, json);
   } catch (error) {
+    console.error(error);
+
     sendJson(response, 502, {
-      error: "Could not reach Mistral from the backend server.",
+      error: "Unable to reach the Mistral API.",
+      details: error.message,
     });
   }
 });
 
 server.listen(PORT, () => {
-  console.log(`Routine backend listening on http://localhost:${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });

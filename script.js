@@ -13,6 +13,7 @@ const sendButton = document.getElementById("sendBtn");
 
 /* Backend API URL for routine generation (no key in frontend code) */
 const BACKEND_URL = "http://localhost:8787/chat";
+const PRODUCT_FALLBACK_IMAGE = "img/loreal-logo.png";
 
 /* Save keys so selections and layout preferences stay after a refresh */
 const STORAGE_KEYS = {
@@ -24,7 +25,7 @@ const STORAGE_KEYS = {
 const SYSTEM_MESSAGE = {
   role: "system",
   content:
-    "You are a L'Oréal skincare and beauty advisor. Build simple, safe routines with the selected products only. Explain the product order, when to use each product, and include helpful beginner-friendly tips. If you mention current or real-world information, include visible source links with full URLs.",
+    "You are a L'Oréal skincare and beauty advisor. Answer routine and beauty questions in a beginner-friendly way. If selected products are provided in the conversation, use them first when building routines. If no products are provided, still answer with safe general guidance and practical tips. If you mention current or real-world information, include visible source links with full URLs.",
 };
 
 /* App state lives in arrays so we can re-render the page when things change */
@@ -221,7 +222,11 @@ function displayProducts(products) {
           tabindex="0"
           aria-label="${product.name} by ${product.brand}"
         >
-          <img src="${product.image}" alt="${product.name}">
+          <img
+            src="${product.image}"
+            alt="${product.name}"
+            onerror="this.onerror=null;this.src='${PRODUCT_FALLBACK_IMAGE}';"
+          >
           <div class="product-info">
             <h3>${product.name}</h3>
             <p class="product-brand">${product.brand}</p>
@@ -477,13 +482,9 @@ async function handleChatSubmit(event) {
     return;
   }
 
+  /* Start a general chat session if a routine has not been generated yet */
   if (messages.length === 0) {
-    chatWindow.innerHTML = `
-      <div class="placeholder-message">
-        Generate a routine first so the assistant has product context.
-      </div>
-    `;
-    return;
+    messages = [SYSTEM_MESSAGE];
   }
 
   renderChatMessage("user", question);
