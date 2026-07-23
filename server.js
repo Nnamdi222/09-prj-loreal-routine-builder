@@ -140,6 +140,7 @@ function buildFallbackReply(messages, reason) {
 function sendText(response, statusCode, message) {
   response.writeHead(statusCode, {
     "Content-Type": "text/plain; charset=utf-8",
+    "Cache-Control": "no-store",
   });
   response.end(message);
 }
@@ -174,6 +175,7 @@ function serveStaticFile(requestPath, response) {
 
     response.writeHead(200, {
       "Content-Type": contentType,
+      "Cache-Control": "no-store",
     });
     response.end(fileBuffer);
   });
@@ -195,6 +197,14 @@ const server = http.createServer(async (request, response) => {
 
   /* Serve frontend pages and assets from the same server */
   if (request.method === "GET" || request.method === "HEAD") {
+    if (requestUrl.pathname === "/health") {
+      sendJson(response, 200, {
+        status: "ok",
+        mode: process.env.OPENROUTER_API_KEY ? "live-ai" : "fallback",
+      });
+      return;
+    }
+
     serveStaticFile(requestUrl.pathname, response);
     return;
   }

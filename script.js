@@ -8,6 +8,7 @@ const clearSelectedButton = document.getElementById("clearSelected");
 const generateRoutineButton = document.getElementById("generateRoutine");
 const chatForm = document.getElementById("chatForm");
 const chatWindow = document.getElementById("chatWindow");
+const chatbotStatus = document.getElementById("chatbotStatus");
 const userInput = document.getElementById("userInput");
 const sendButton = document.getElementById("sendBtn");
 
@@ -15,6 +16,7 @@ const sendButton = document.getElementById("sendBtn");
 const BACKEND_URL = "/chat";
 const LOCAL_BACKEND_URL = "http://localhost:8787/chat";
 const PRODUCT_FALLBACK_IMAGE = "img/loreal-logo.png";
+const BACKEND_CHECK_INTERVAL_MS = 20000;
 
 /*
   Try same-origin first, then localhost fallback when needed.
@@ -26,6 +28,11 @@ function getBackendUrls() {
   }
 
   return [BACKEND_URL, LOCAL_BACKEND_URL];
+}
+
+/* Convert each chat endpoint candidate to the matching health endpoint */
+function getHealthUrls() {
+  return getBackendUrls().map((url) => url.replace(/\/chat$/, "/health"));
 }
 
 /* Save keys so selections and layout preferences stay after a refresh */
@@ -46,6 +53,68 @@ let allProducts = [];
 let selectedProducts = [];
 let messages = [];
 let isWaitingForReply = false;
+let isBackendAvailable = false;
+
+/* Keep action buttons in sync with backend availability and loading state */
+function updateActionButtons() {
+  const disableActions = isWaitingForReply || !isBackendAvailable;
+  generateRoutineButton.disabled = disableActions;
+  sendButton.disabled = disableActions;
+}
+
+/* Show current backend status so students know if chat is ready */
+function setChatbotStatus(state, text) {
+  if (!chatbotStatus) {
+    return;
+  }
+
+  chatbotStatus.className = `chatbot-status ${state}`;
+  chatbotStatus.textContent = text;
+}
+
+/* Check backend health endpoint and update status badge */
+async function checkBackendStatus() {
+  setChatbotStatus("checking", "Checking chatbot connection...");
+
+  for (const healthUrl of getHealthUrls()) {
+    try {
+      const response = await fetch(healthUrl, {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        continue;
+      }
+
+      const data = await response.json();
+
+      if (data.status !== "ok") {
+        continue;
+      }
+
+      isBackendAvailable = true;
+      updateActionButtons();
+
+      if (data.mode === "live-ai") {
+        setChatbotStatus("online", "Chatbot online (Live AI mode)");
+      } else {
+        setChatbotStatus("fallback", "Chatbot online (Fallback mode)");
+      }
+
+      return;
+    } catch (error) {
+      /* Try the next health endpoint candidate */
+    }
+  }
+
+  isBackendAvailable = false;
+  updateActionButtons();
+  setChatbotStatus(
+    "offline",
+    "Chatbot offline. Start server.js and open http://localhost:8787",
+  );
+}
 
 /* Show placeholders before the user starts interacting */
 productsContainer.innerHTML = `
@@ -65,6 +134,9 @@ chatWindow.innerHTML = `
     Choose products, generate a routine, then ask follow-up questions here.
   </div>
 `;
+
+/* Start with actions disabled until backend health check succeeds */
+updateActionButtons();
 
 /* Load all product data once, then reuse it for filtering and selection */
 async function loadProducts() {
@@ -339,8 +411,7 @@ function clearChatStatus() {
 /* Disable buttons while we wait for the AI response */
 function setWaitingState(isWaiting) {
   isWaitingForReply = isWaiting;
-  generateRoutineButton.disabled = isWaiting;
-  sendButton.disabled = isWaiting;
+  updateActionButtons();
 }
 
 /* Refresh the product grid and selected list after state changes */
@@ -445,7 +516,7 @@ async function getAssistantReply() {
 
   if (fallbackText.trim()) {
     throw new Error(
-      `${fallbackText.trim()} The backend API is not returning chat completion JSON. Check server.js logs and confirm your Mistral key is set in the server environment.`,
+      `${fallbackText.trim()} The backend API is not returning chat completion JSON. Check server.js logs and confirm your OPENROUTER_API_KEY is set in the server environment.`,
     );
   }
 
@@ -540,6 +611,8 @@ async function initializeApp() {
     populateCategoryOptions(allProducts);
     restoreSelectedProducts();
     updateProductViews();
+    await checkBackendStatus();
+    setInterval(checkBackendStatus, BACKEND_CHECK_INTERVAL_MS);
   } catch (error) {
     productsContainer.innerHTML = `
       <div class="placeholder-message">

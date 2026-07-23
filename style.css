@@ -99,7 +99,42 @@ body {
 
 .chatbox h2 {
   font-size: 20px;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
+}
+
+.chatbot-status {
+  display: inline-block;
+  margin-bottom: 16px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  border: 1px solid transparent;
+}
+
+.chatbot-status.checking {
+  color: #5a4a00;
+  background: #fff6d8;
+  border-color: #f0d77a;
+}
+
+.chatbot-status.online {
+  color: #0b4d1a;
+  background: #e6f8ea;
+  border-color: #9dd8a9;
+}
+
+.chatbot-status.fallback {
+  color: #1d3a62;
+  background: #e8f2ff;
+  border-color: #a9c8f3;
+}
+
+.chatbot-status.offline {
+  color: #7a1200;
+  background: #fde9e5;
+  border-color: #f1b0a3;
 }
 
 .chat-window {
