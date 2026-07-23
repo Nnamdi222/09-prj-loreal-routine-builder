@@ -1,109 +1,57 @@
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "*",
 };
 
-function jsonResponse(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "application/json",
-    },
-  });
-}
+const targetUrl = "https://api.openai.com/v1/chat/completions";
 
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") {
       return new Response(null, {
+        status: 204,
         headers: corsHeaders,
       });
     }
 
-    if (request.method !== "POST") {
-      return jsonResponse(
-        {
-          error: "Use POST with a messages array.",
-        },
-        405,
-      );
-    }
-
-    if (!env.OPENAI_API_KEY) {
-      return jsonResponse(
-        {
-          error: "Missing OPENAI_API_KEY Worker secret.",
-        },
-        500,
-      );
-    }
-
-    let payload;
+    const headers = new Headers(request.headers);
+    headers.set("Authorization", `Bearer ${env.OPENAI_API_KEY || ""}`);
+    headers.set("Host", new URL(targetUrl).host);
 
     try {
-      payload = await request.json();
+      const upstreamResponse = await fetch(targetUrl, {
+        method: request.method,
+        headers,
+        body:
+          request.method === "GET" || request.method === "HEAD"
+            ? undefined
+            : request.body,
+      });
+
+      const responseHeaders = new Headers(upstreamResponse.headers);
+
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        responseHeaders.set(key, value);
+      });
+
+      return new Response(upstreamResponse.body, {
+        status: upstreamResponse.status,
+        statusText: upstreamResponse.statusText,
+        headers: responseHeaders,
+      });
     } catch (error) {
-      return jsonResponse(
+      return new Response(
+        JSON.stringify({
+          error: "Failed to forward request to OpenAI.",
+        }),
         {
-          error: "Request body must be valid JSON.",
-        },
-        400,
-      );
-    }
-
-    if (!Array.isArray(payload.messages) || payload.messages.length === 0) {
-      return jsonResponse(
-        {
-          error: "Request body must include a non-empty messages array.",
-        },
-        400,
-      );
-    }
-
-    try {
-      const openAiResponse = await fetch(
-        "https://api.openai.com/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${env.OPENAI_API_KEY}`,
-          },
-          body: JSON.stringify({
-            model: "gpt-4.1",
-            messages: payload.messages,
-            temperature: 0.7,
-          }),
-        },
-      );
-
-      const responseText = await openAiResponse.text();
-
-      if (!openAiResponse.ok) {
-        return new Response(responseText, {
-          status: openAiResponse.status,
+          status: 502,
           headers: {
             ...corsHeaders,
             "Content-Type": "application/json",
           },
-        });
-      }
-
-      return new Response(responseText, {
-        status: 200,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
         },
-      });
-    } catch (error) {
-      return jsonResponse(
-        {
-          error: "Unable to reach OpenAI right now.",
-        },
-        500,
       );
     }
   },

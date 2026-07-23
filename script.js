@@ -366,29 +366,56 @@ function clearSelectedProducts() {
 
 /* Send the full messages array to the class-hosted worker */
 async function getAssistantReply() {
-  const response = await fetch(WORKER_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ messages }),
-  });
+  let response;
 
-  if (!response.ok) {
-    throw new Error("The routine service is not available right now.");
+  try {
+    response = await fetch(WORKER_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ messages }),
+    });
+  } catch (error) {
+    throw new Error(
+      "The chatbot could not reach the Cloudflare Worker. Make sure the Worker is deployed and the URL in script.js is correct.",
+    );
   }
 
   const responseType = response.headers.get("content-type") || "";
 
+  if (!response.ok) {
+    if (responseType.includes("application/json")) {
+      const errorData = await response.json();
+      throw new Error(
+        errorData.error || "The routine service is not available right now.",
+      );
+    }
+
+    const errorText = await response.text();
+    throw new Error(
+      errorText || "The routine service is not available right now.",
+    );
+  }
+
   if (responseType.includes("application/json")) {
     const data = await response.json();
-    return data.choices[0].message.content;
+
+    if (data.error) {
+      throw new Error(data.error);
+    }
+
+    if (data.choices?.[0]?.message?.content) {
+      return data.choices[0].message.content;
+    }
   }
 
   const fallbackText = await response.text();
 
   if (fallbackText.trim()) {
-    return `${fallbackText.trim()}\n\nThe Cloudflare Worker is not returning the expected OpenAI JSON format yet.`;
+    throw new Error(
+      `${fallbackText.trim()} The deployed Cloudflare Worker is still returning the default response instead of OpenAI chat JSON. Deploy worker.js with Wrangler and keep the same workers.dev URL or update script.js to the new URL.`,
+    );
   }
 
   throw new Error(
