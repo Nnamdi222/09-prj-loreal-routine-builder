@@ -1,6 +1,9 @@
 /*
-  Simple backend proxy for Mistral chat completions.
-  Keeps your API key on the server.
+  Free OpenAI-compatible chatbot backend.
+  - Serves the frontend files
+  - Handles POST /chat requests
+  - Uses a free model via OpenRouter (OpenAI-compatible API)
+  - Returns a safe fallback reply instead of crashing
 */
 
 const http = require("http");
@@ -8,8 +11,8 @@ const fs = require("fs");
 const path = require("path");
 
 const PORT = Number(process.env.PORT) || 8787;
-const MISTRAL_URL = "https://api.mistral.ai/v1/chat/completions";
-const DEFAULT_MODEL = "mistral-small-latest";
+const OPENAI_COMPAT_URL = "https://openrouter.ai/api/v1/chat/completions";
+const DEFAULT_MODEL = "meta-llama/llama-3.1-8b-instruct:free";
 const PUBLIC_DIR = __dirname;
 
 const CONTENT_TYPES = {
@@ -33,16 +36,19 @@ if (typeof fetch === "undefined") {
   process.exit(1);
 }
 
-/* Check API key at startup so setup issues are visible right away */
-if (!process.env.MISTRAL_API_KEY) {
+/*
+  OPENROUTER_API_KEY is optional for startup.
+  If it is missing, the server still answers with a local fallback message.
+*/
+if (!process.env.OPENROUTER_API_KEY) {
   console.error(
-    "ERROR: MISTRAL_API_KEY not found. Set it in your terminal before starting the server.",
+    "Warning: OPENROUTER_API_KEY not found. Chat will run in local fallback mode.",
   );
 }
 
 console.log(
-  "Mistral API Key Loaded:",
-  process.env.MISTRAL_API_KEY ? "YES" : "NO",
+  "OpenRouter API Key Loaded:",
+  process.env.OPENROUTER_API_KEY ? "YES" : "NO",
 );
 
 /*
@@ -76,6 +82,56 @@ function readRequestBody(request) {
 
     request.on("error", reject);
   });
+}
+
+/*
+  Build an OpenAI-style response shape so the frontend can always parse it.
+*/
+function buildChatCompletion(content, model = DEFAULT_MODEL, metadata = {}) {
+  return {
+    id: `chatcmpl_local_${Date.now()}`,
+    object: "chat.completion",
+    created: Math.floor(Date.now() / 1000),
+    model,
+    choices: [
+      {
+        index: 0,
+        message: {
+          role: "assistant",
+          content,
+        },
+        finish_reason: "stop",
+      },
+    ],
+    metadata,
+  };
+}
+
+/*
+  Fallback reply used when API key is missing or provider fails.
+*/
+function buildFallbackReply(messages, reason) {
+  const latestUserMessage = [...messages]
+    .reverse()
+    .find((message) => message && message.role === "user");
+
+  const userText = latestUserMessage
+    ? latestUserMessage.content
+    : "Please help me with a beauty routine.";
+
+  return [
+    "I can still help right now in fallback mode.",
+    "",
+    `Your question: ${userText}`,
+    "",
+    "Quick guidance:",
+    "1. Morning: gentle cleanse, hydrate, and wear SPF.",
+    "2. Evening: cleanse, treatment (if needed), and moisturize.",
+    "3. Add one new active at a time and patch-test first.",
+    "",
+    `Fallback reason: ${reason}`,
+    "For full AI answers, set OPENROUTER_API_KEY and restart server.js.",
+  ].join("\n");
 }
 
 /*
@@ -154,15 +210,6 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
-  const apiKey = process.env.MISTRAL_API_KEY;
-
-  if (!apiKey) {
-    sendJson(response, 500, {
-      error: "Server is missing MISTRAL_API_KEY.",
-    });
-    return;
-  }
-
   let parsedBody;
 
   try {
@@ -174,55 +221,96 @@ const server = http.createServer(async (request, response) => {
   }
 
   if (!Array.isArray(parsedBody.messages) || parsedBody.messages.length === 0) {
-    sendJson(response, 400, {
-      error: "A non-empty messages array is required.",
-    });
+    const emptyPromptReply = buildChatCompletion(
+      "Ask me any skincare, haircare, makeup, or routine question and I will help.",
+    );
+    sendJson(response, 200, emptyPromptReply);
     return;
   }
 
+  const apiKey = process.env.OPENROUTER_API_KEY;
   const upstreamBody = {
     model: parsedBody.model || DEFAULT_MODEL,
     messages: parsedBody.messages,
+    temperature: 0.7,
   };
 
-  try {
-    console.log("Sending request to Mistral...");
+  if (!apiKey) {
+    const fallbackReply = buildChatCompletion(
+      buildFallbackReply(parsedBody.messages, "OPENROUTER_API_KEY is missing."),
+      upstreamBody.model,
+      { fallback: true },
+    );
 
-    const mistralResponse = await fetch(MISTRAL_URL, {
+    sendJson(response, 200, fallbackReply);
+    return;
+  }
+
+  try {
+    console.log("Sending request to OpenAI-compatible provider...");
+
+    const upstreamResponse = await fetch(OPENAI_COMPAT_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
+        "HTTP-Referer": `http://localhost:${PORT}`,
+        "X-Title": "Loreal Routine Builder",
       },
       body: JSON.stringify(upstreamBody),
     });
 
-    const text = await mistralResponse.text();
+    const text = await upstreamResponse.text();
     let json;
 
     try {
       json = JSON.parse(text);
     } catch (error) {
-      sendJson(response, 502, {
-        error: "Mistral returned invalid JSON.",
-        raw: text,
-      });
+      const fallbackReply = buildChatCompletion(
+        buildFallbackReply(
+          parsedBody.messages,
+          "Provider returned invalid JSON.",
+        ),
+        upstreamBody.model,
+        { fallback: true },
+      );
+      sendJson(response, 200, fallbackReply);
       return;
     }
 
-    console.log("Mistral Status:", mistralResponse.status);
+    if (!upstreamResponse.ok || !json.choices?.[0]?.message?.content) {
+      const errorReason =
+        json.error?.message || json.detail || `HTTP ${upstreamResponse.status}`;
+      const fallbackReply = buildChatCompletion(
+        buildFallbackReply(
+          parsedBody.messages,
+          `Provider error: ${errorReason}`,
+        ),
+        upstreamBody.model,
+        { fallback: true, providerStatus: upstreamResponse.status },
+      );
+      sendJson(response, 200, fallbackReply);
+      return;
+    }
 
-    sendJson(response, mistralResponse.status, json);
+    console.log("Provider Status:", upstreamResponse.status);
+
+    sendJson(response, upstreamResponse.status, json);
   } catch (error) {
     console.error(error);
 
-    sendJson(response, 502, {
-      error: "Unable to reach the Mistral API.",
-      details: error.message,
-    });
+    const fallbackReply = buildChatCompletion(
+      buildFallbackReply(
+        parsedBody.messages,
+        `Network issue: ${error.message}`,
+      ),
+      upstreamBody.model,
+      { fallback: true },
+    );
+    sendJson(response, 200, fallbackReply);
   }
 });
 
 server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Free chatbot server running on http://localhost:${PORT}`);
 });

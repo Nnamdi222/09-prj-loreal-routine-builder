@@ -13,7 +13,20 @@ const sendButton = document.getElementById("sendBtn");
 
 /* Backend API URL for routine generation (no key in frontend code) */
 const BACKEND_URL = "/chat";
+const LOCAL_BACKEND_URL = "http://localhost:8787/chat";
 const PRODUCT_FALLBACK_IMAGE = "img/loreal-logo.png";
+
+/*
+  Try same-origin first, then localhost fallback when needed.
+  This helps when students open files in different preview modes.
+*/
+function getBackendUrls() {
+  if (window.location.protocol === "file:") {
+    return [LOCAL_BACKEND_URL];
+  }
+
+  return [BACKEND_URL, LOCAL_BACKEND_URL];
+}
 
 /* Save keys so selections and layout preferences stay after a refresh */
 const STORAGE_KEYS = {
@@ -371,19 +384,32 @@ function clearSelectedProducts() {
 
 /* Send the full messages array to the backend proxy */
 async function getAssistantReply() {
+  const backendUrls = getBackendUrls();
   let response;
 
-  try {
-    response = await fetch(BACKEND_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ messages }),
-    });
-  } catch (error) {
+  for (const apiUrl of backendUrls) {
+    try {
+      response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ messages }),
+      });
+
+      if (response.status === 404 && apiUrl === BACKEND_URL) {
+        continue;
+      }
+
+      break;
+    } catch (error) {
+      /* Try the next candidate backend URL */
+    }
+  }
+
+  if (!response) {
     throw new Error(
-      "The chatbot could not reach the backend API. Make sure server.js is running and the BACKEND_URL in script.js is correct.",
+      "The chatbot could not reach the backend API. Start server.js, then open the app from http://localhost:8787. If you opened index.html directly, switch to the server URL.",
     );
   }
 

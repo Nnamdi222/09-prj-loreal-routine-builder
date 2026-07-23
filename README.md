@@ -4,15 +4,17 @@ L’Oréal is expanding what’s possible with AI, and now your chatbot is getti
 
 Users will be able to browse real L’Oréal brand products, select the ones they want, and generate a personalized routine using AI. They can also ask follow-up questions about their routine—just like chatting with a real advisor.
 
-## Backend setup (no Cloudflare)
+## Backend setup (free OpenAI-compatible chat)
 
-This project sends the frontend `messages` array to a local backend server. The backend talks to Mistral, so the API key stays off the frontend. The same server also serves the frontend files, so chat requests use the same origin.
+This project sends the frontend `messages` array to a local backend server. The backend uses a free OpenAI-compatible model through OpenRouter, so API keys stay off the frontend. The same server also serves the frontend files, so chat requests use the same origin.
 
-1. Set your Mistral key as an environment variable:
+1. (Optional, recommended) Set your OpenRouter key as an environment variable:
 
 ```bash
-export MISTRAL_API_KEY="your_mistral_key_here"
+export OPENROUTER_API_KEY="your_openrouter_key_here"
 ```
+
+If you skip this, the app still replies using a local fallback mode.
 
 2. Start the backend server in this repo:
 
