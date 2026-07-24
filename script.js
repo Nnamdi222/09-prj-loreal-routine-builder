@@ -89,6 +89,16 @@ async function checkBackendStatus() {
 
       const data = await response.json();
 
+      if (data.status === "missing-key") {
+        isBackendAvailable = false;
+        updateActionButtons();
+        setChatbotStatus(
+          "offline",
+          "Chatbot needs OPENAI_API_KEY before it can answer questions",
+        );
+        return;
+      }
+
       if (data.status !== "ok") {
         continue;
       }
@@ -96,11 +106,7 @@ async function checkBackendStatus() {
       isBackendAvailable = true;
       updateActionButtons();
 
-      if (data.mode === "live-ai") {
-        setChatbotStatus("online", "Chatbot online (Live AI mode)");
-      } else {
-        setChatbotStatus("fallback", "Chatbot online (Fallback mode)");
-      }
+      setChatbotStatus("online", "Chatbot online (Live AI with web search)");
 
       return;
     } catch (error) {

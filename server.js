@@ -1,20 +1,16 @@
 /*
-  Free OpenAI-compatible chatbot backend.
+  OpenAI chatbot backend.
   - Serves the frontend files
-  /*
-    OpenAI chatbot backend.
-    - Serves the frontend files
-    - Handles POST /chat requests
-    - Uses OpenAI chat completions when OPENAI_API_KEY is set
-    - Returns a safe fallback reply instead of crashing
-  */
+  - Handles POST /chat requests
+  - Uses the OpenAI Responses API with web search when OPENAI_API_KEY is set
+*/
 
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
 
 const PORT = Number(process.env.PORT) || 8787;
-const OPENAI_COMPAT_URL = "https://api.openai.com/v1/chat/completions";
+const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const DEFAULT_MODEL = "gpt-4.1";
 const PUBLIC_DIR = __dirname;
 
@@ -39,13 +35,9 @@ if (typeof fetch === "undefined") {
   process.exit(1);
 }
 
-/*
-    OPENAI_API_KEY is optional for startup.
-    If it is missing, the server still answers with a local fallback message.
-  */
 if (!process.env.OPENAI_API_KEY) {
   console.error(
-    "Warning: OPENAI_API_KEY not found. Chat will run in local fallback mode.",
+    "ERROR: OPENAI_API_KEY not found. Live chat is unavailable until it is configured.",
   );
 }
 
@@ -111,30 +103,34 @@ function buildChatCompletion(content, model = DEFAULT_MODEL, metadata = {}) {
 }
 
 /*
-    Fallback reply used when API key is missing or provider fails.
-  */
-function buildFallbackReply(messages, reason) {
-  const latestUserMessage = [...messages]
-    .reverse()
-    .find((message) => message && message.role === "user");
+  Extract the response text and clickable source URLs from Responses API output.
+*/
+function getResponseText(responseData) {
+  const message = responseData.output?.find(
+    (item) => item.type === "message" && item.role === "assistant",
+  );
+  const contentParts = message?.content || [];
+  const text = contentParts
+    .filter((part) => part.type === "output_text")
+    .map((part) => part.text)
+    .join("\n");
 
-  const userText = latestUserMessage
-    ? latestUserMessage.content
-    : "Please help me with a beauty routine.";
+  const sourceUrls = contentParts.flatMap((part) =>
+    (part.annotations || [])
+      .filter((annotation) => annotation.type === "url_citation")
+      .map((annotation) => annotation.url),
+  );
+  const uniqueSourceUrls = [...new Set(sourceUrls)];
 
-  return [
-    "I can still help right now in fallback mode.",
-    "",
-    `Your question: ${userText}`,
-    "",
-    "Quick guidance:",
-    "1. Morning: gentle cleanse, hydrate, and wear SPF.",
-    "2. Evening: cleanse, treatment (if needed), and moisturize.",
-    "3. Add one new active at a time and patch-test first.",
-    "",
-    `Fallback reason: ${reason}`,
-    "For full AI answers, set OPENAI_API_KEY and restart server.js.",
-  ].join("\n");
+  if (!text) {
+    return "";
+  }
+
+  if (uniqueSourceUrls.length === 0) {
+    return text;
+  }
+
+  return `${text}\n\nSources:\n${uniqueSourceUrls.join("\n")}`;
 }
 
 /*
@@ -202,8 +198,8 @@ const server = http.createServer(async (request, response) => {
   if (request.method === "GET" || request.method === "HEAD") {
     if (requestUrl.pathname === "/health") {
       sendJson(response, 200, {
-        status: "ok",
-        mode: process.env.OPENAI_API_KEY ? "live-ai" : "fallback",
+        status: process.env.OPENAI_API_KEY ? "ok" : "missing-key",
+        mode: process.env.OPENAI_API_KEY ? "live-ai" : "unconfigured",
       });
       return;
     }
@@ -234,35 +230,36 @@ const server = http.createServer(async (request, response) => {
   }
 
   if (!Array.isArray(parsedBody.messages) || parsedBody.messages.length === 0) {
-    const emptyPromptReply = buildChatCompletion(
-      "Ask me any skincare, haircare, makeup, or routine question and I will help.",
-    );
-    sendJson(response, 200, emptyPromptReply);
+    sendJson(response, 400, {
+      error: "A non-empty messages array is required.",
+    });
     return;
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
   const upstreamBody = {
     model: parsedBody.model || DEFAULT_MODEL,
-    messages: parsedBody.messages,
-    temperature: 0.7,
+    input: parsedBody.messages,
+    tools: [
+      {
+        type: "web_search",
+        search_context_size: "low",
+      },
+    ],
+    tool_choice: "auto",
   };
 
   if (!apiKey) {
-    const fallbackReply = buildChatCompletion(
-      buildFallbackReply(parsedBody.messages, "OPENAI_API_KEY is missing."),
-      upstreamBody.model,
-      { fallback: true },
-    );
-
-    sendJson(response, 200, fallbackReply);
+    sendJson(response, 503, {
+      error: "OPENAI_API_KEY is missing. Configure it and restart server.js.",
+    });
     return;
   }
 
   try {
-    console.log("Sending request to OpenAI...");
+    console.log("Sending web-enabled request to OpenAI...");
 
-    const upstreamResponse = await fetch(OPENAI_COMPAT_URL, {
+    const upstreamResponse = await fetch(OPENAI_RESPONSES_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -277,49 +274,48 @@ const server = http.createServer(async (request, response) => {
     try {
       json = JSON.parse(text);
     } catch (error) {
-      const fallbackReply = buildChatCompletion(
-        buildFallbackReply(
-          parsedBody.messages,
-          "Provider returned invalid JSON.",
-        ),
-        upstreamBody.model,
-        { fallback: true },
-      );
-      sendJson(response, 200, fallbackReply);
+      sendJson(response, 502, {
+        error: "OpenAI returned an invalid response.",
+      });
       return;
     }
 
-    if (!upstreamResponse.ok || !json.choices?.[0]?.message?.content) {
+    const responseText = getResponseText(json);
+
+    if (!upstreamResponse.ok || !responseText) {
       const errorReason =
         json.error?.message || json.detail || `HTTP ${upstreamResponse.status}`;
-      const fallbackReply = buildChatCompletion(
-        buildFallbackReply(
-          parsedBody.messages,
-          `Provider error: ${errorReason}`,
-        ),
-        upstreamBody.model,
-        { fallback: true, providerStatus: upstreamResponse.status },
-      );
-      sendJson(response, 200, fallbackReply);
+      sendJson(response, upstreamResponse.status || 502, {
+        error: `OpenAI request failed: ${errorReason}`,
+      });
       return;
     }
 
     console.log("OpenAI Status:", upstreamResponse.status);
 
-    sendJson(response, upstreamResponse.status, json);
+    sendJson(
+      response,
+      upstreamResponse.status,
+      buildChatCompletion(responseText, upstreamBody.model),
+    );
   } catch (error) {
     console.error(error);
 
-    const fallbackReply = buildChatCompletion(
-      buildFallbackReply(
-        parsedBody.messages,
-        `Network issue: ${error.message}`,
-      ),
-      upstreamBody.model,
-      { fallback: true },
-    );
-    sendJson(response, 200, fallbackReply);
+    sendJson(response, 502, {
+      error: `Could not reach OpenAI: ${error.message}`,
+    });
   }
+});
+
+server.on("error", (error) => {
+  if (error.code === "EADDRINUSE") {
+    console.error(
+      `Port ${PORT} is already in use. Stop the existing server before starting a new one.`,
+    );
+    return;
+  }
+
+  console.error("Server could not start:", error.message);
 });
 
 server.listen(PORT, () => {
