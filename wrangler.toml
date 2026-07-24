@@ -1,0 +1,4 @@
+# Cloudflare Worker deployment settings.
+name = "loreal-routine-builder"
+main = "worker.js"
+compatibility_date = "2025-01-01"

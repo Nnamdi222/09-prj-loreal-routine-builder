@@ -4,35 +4,41 @@ L’Oréal is expanding what’s possible with AI, and now your chatbot is getti
 
 Users will be able to browse real L’Oréal brand products, select the ones they want, and generate a personalized routine using AI. They can also ask follow-up questions about their routine—just like chatting with a real advisor.
 
-## Backend setup (free OpenAI-compatible chat)
+## Cloudflare Worker setup
 
-This project sends the frontend `messages` array to a local backend server. The backend uses OpenAI chat completions, so API keys stay off the frontend. The same server also serves the frontend files, so chat requests use the same origin.
+The frontend sends its complete `messages` array to a Cloudflare Worker. The
+Worker calls OpenAI, keeping the API key out of the browser and this repository.
 
-1. (Required for live OpenAI replies) Set your OpenAI key as an environment variable:
-
-```bash
-export OPENAI_API_KEY="your_openai_key_here"
-```
-
-If you skip this, the app still replies using a local fallback mode.
-
-2. Start the backend server in this repo:
+1. Log in to Cloudflare from this project folder:
 
 ```bash
-node server.js
+npx wrangler login
 ```
 
-Then open the app from the same server URL:
+2. Deploy the Worker:
 
-```text
-http://localhost:8787
+```bash
+npx wrangler deploy
 ```
 
-3. Keep `script.js` set to:
+Copy the `https://...workers.dev` URL that Wrangler prints.
 
-```js
-const BACKEND_URL = "/chat";
+3. In `script.js`, replace the placeholder value in `WORKER_URL` with that URL.
+
+4. Add the API key directly to Cloudflare's secure secret prompt:
+
+```bash
+npx wrangler secret put OPENAI_API_KEY
 ```
+
+When the terminal displays `Enter a secret value:`, paste the key there and
+press Enter. Do not put the key in a file and do not send it in chat.
+
+5. Publish the frontend using a static host such as Cloudflare Pages or GitHub
+   Pages. The Worker allows browser requests with CORS, so the app can be hosted
+   separately from the API.
+
+The Worker expects a JSON request like this:
 
 The backend expects a JSON request like this:
 

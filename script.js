@@ -12,28 +12,17 @@ const chatbotStatus = document.getElementById("chatbotStatus");
 const userInput = document.getElementById("userInput");
 const sendButton = document.getElementById("sendBtn");
 
-/* Backend API URL for routine generation (no key in frontend code) */
-const BACKEND_URL = "/chat";
-const LOCAL_BACKEND_URL = "http://localhost:8787/chat";
+/*
+  Paste the deployed Worker URL here after running `wrangler deploy`.
+  This is public and safe to include in frontend code. Do not add API keys.
+*/
+const WORKER_URL = "https://tiny-river-65b8.eneje22.workers.dev";
+const BACKEND_URL = `${WORKER_URL}/chat`;
 const PRODUCT_FALLBACK_IMAGE = "img/loreal-logo.png";
 const BACKEND_CHECK_INTERVAL_MS = 20000;
 
-/*
-  Try same-origin first, then localhost fallback when needed.
-  This helps when students open files in different preview modes.
-*/
-function getBackendUrls() {
-  if (window.location.protocol === "file:") {
-    return [LOCAL_BACKEND_URL];
-  }
-
-  return [BACKEND_URL, LOCAL_BACKEND_URL];
-}
-
-/* Convert each chat endpoint candidate to the matching health endpoint */
-function getHealthUrls() {
-  return getBackendUrls().map((url) => url.replace(/\/chat$/, "/health"));
-}
+/* The Worker provides a small health route to confirm its secret is ready. */
+const HEALTH_URL = `${WORKER_URL}/health`;
 
 /* Save keys so selections and layout preferences stay after a refresh */
 const STORAGE_KEYS = {
@@ -76,49 +65,43 @@ function setChatbotStatus(state, text) {
 async function checkBackendStatus() {
   setChatbotStatus("checking", "Checking chatbot connection...");
 
-  for (const healthUrl of getHealthUrls()) {
-    try {
-      const response = await fetch(healthUrl, {
-        method: "GET",
-        cache: "no-store",
-      });
+  try {
+    const response = await fetch(HEALTH_URL, {
+      method: "GET",
+      cache: "no-store",
+    });
 
-      if (!response.ok) {
-        continue;
-      }
+    if (!response.ok) {
+      throw new Error("The Worker health check failed.");
+    }
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (data.status === "missing-key") {
-        isBackendAvailable = false;
-        updateActionButtons();
-        setChatbotStatus(
-          "offline",
-          "Chatbot needs OPENAI_API_KEY before it can answer questions",
-        );
-        return;
-      }
+    if (data.status === "missing-key") {
+      isBackendAvailable = false;
+      updateActionButtons();
+      setChatbotStatus(
+        "offline",
+        "Chatbot needs OPENAI_API_KEY in Cloudflare before it can answer questions",
+      );
+      return;
+    }
 
-      if (data.status !== "ok") {
-        continue;
-      }
-
+    if (data.status === "ok") {
       isBackendAvailable = true;
       updateActionButtons();
-
-      setChatbotStatus("online", "Chatbot online (Live AI with web search)");
-
+      setChatbotStatus("online", "Chatbot online (Cloudflare Worker)");
       return;
-    } catch (error) {
-      /* Try the next health endpoint candidate */
     }
+  } catch (error) {
+    /* Show the connection message below. */
   }
 
   isBackendAvailable = false;
   updateActionButtons();
   setChatbotStatus(
     "offline",
-    "Chatbot offline. Start server.js and open http://localhost:8787",
+    "Chatbot offline. Deploy the Cloudflare Worker and update WORKER_URL in script.js",
   );
 }
 
@@ -461,32 +444,19 @@ function clearSelectedProducts() {
 
 /* Send the full messages array to the backend proxy */
 async function getAssistantReply() {
-  const backendUrls = getBackendUrls();
   let response;
 
-  for (const apiUrl of backendUrls) {
-    try {
-      response = await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ messages }),
-      });
-
-      if (response.status === 404 && apiUrl === BACKEND_URL) {
-        continue;
-      }
-
-      break;
-    } catch (error) {
-      /* Try the next candidate backend URL */
-    }
-  }
-
-  if (!response) {
+  try {
+    response = await fetch(BACKEND_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ messages }),
+    });
+  } catch (error) {
     throw new Error(
-      "The chatbot could not reach the backend API. Start server.js, then open the app from http://localhost:8787. If you opened index.html directly, switch to the server URL.",
+      "The chatbot could not reach the Cloudflare Worker. Check WORKER_URL in script.js.",
     );
   }
 
@@ -522,7 +492,7 @@ async function getAssistantReply() {
 
   if (fallbackText.trim()) {
     throw new Error(
-      `${fallbackText.trim()} The backend API is not returning chat completion JSON. Check server.js logs and confirm your OPENAI_API_KEY is set in the server environment.`,
+      `${fallbackText.trim()} The Worker is not returning chat completion JSON. Check worker.js and the Cloudflare deployment logs.`,
     );
   }
 
