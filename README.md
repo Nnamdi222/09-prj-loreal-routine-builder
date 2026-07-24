@@ -6,12 +6,12 @@ Users will be able to browse real L’Oréal brand products, select the ones the
 
 ## Backend setup (free OpenAI-compatible chat)
 
-This project sends the frontend `messages` array to a local backend server. The backend uses a free OpenAI-compatible model through OpenRouter, so API keys stay off the frontend. The same server also serves the frontend files, so chat requests use the same origin.
+This project sends the frontend `messages` array to a local backend server. The backend uses OpenAI chat completions, so API keys stay off the frontend. The same server also serves the frontend files, so chat requests use the same origin.
 
-1. (Optional, recommended) Set your OpenRouter key as an environment variable:
+1. (Required for live OpenAI replies) Set your OpenAI key as an environment variable:
 
 ```bash
-export OPENROUTER_API_KEY="your_openrouter_key_here"
+export OPENAI_API_KEY="your_openai_key_here"
 ```
 
 If you skip this, the app still replies using a local fallback mode.

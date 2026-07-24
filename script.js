@@ -516,7 +516,7 @@ async function getAssistantReply() {
 
   if (fallbackText.trim()) {
     throw new Error(
-      `${fallbackText.trim()} The backend API is not returning chat completion JSON. Check server.js logs and confirm your OPENROUTER_API_KEY is set in the server environment.`,
+      `${fallbackText.trim()} The backend API is not returning chat completion JSON. Check server.js logs and confirm your OPENAI_API_KEY is set in the server environment.`,
     );
   }
 

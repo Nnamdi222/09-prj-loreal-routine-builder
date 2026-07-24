@@ -1,18 +1,21 @@
 /*
   Free OpenAI-compatible chatbot backend.
   - Serves the frontend files
-  - Handles POST /chat requests
-  - Uses a free model via OpenRouter (OpenAI-compatible API)
-  - Returns a safe fallback reply instead of crashing
-*/
+  /*
+    OpenAI chatbot backend.
+    - Serves the frontend files
+    - Handles POST /chat requests
+    - Uses OpenAI chat completions when OPENAI_API_KEY is set
+    - Returns a safe fallback reply instead of crashing
+  */
 
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
 
 const PORT = Number(process.env.PORT) || 8787;
-const OPENAI_COMPAT_URL = "https://openrouter.ai/api/v1/chat/completions";
-const DEFAULT_MODEL = "meta-llama/llama-3.1-8b-instruct:free";
+const OPENAI_COMPAT_URL = "https://api.openai.com/v1/chat/completions";
+const DEFAULT_MODEL = "gpt-4.1";
 const PUBLIC_DIR = __dirname;
 
 const CONTENT_TYPES = {
@@ -37,23 +40,23 @@ if (typeof fetch === "undefined") {
 }
 
 /*
-  OPENROUTER_API_KEY is optional for startup.
-  If it is missing, the server still answers with a local fallback message.
-*/
-if (!process.env.OPENROUTER_API_KEY) {
+    OPENAI_API_KEY is optional for startup.
+    If it is missing, the server still answers with a local fallback message.
+  */
+if (!process.env.OPENAI_API_KEY) {
   console.error(
-    "Warning: OPENROUTER_API_KEY not found. Chat will run in local fallback mode.",
+    "Warning: OPENAI_API_KEY not found. Chat will run in local fallback mode.",
   );
 }
 
 console.log(
-  "OpenRouter API Key Loaded:",
-  process.env.OPENROUTER_API_KEY ? "YES" : "NO",
+  "OpenAI API Key Loaded:",
+  process.env.OPENAI_API_KEY ? "YES" : "NO",
 );
 
 /*
-  Send JSON with CORS headers so the browser can call this endpoint.
-*/
+    Send JSON with CORS headers so the browser can call this endpoint.
+  */
 function sendJson(response, statusCode, payload) {
   response.writeHead(statusCode, {
     "Content-Type": "application/json",
@@ -66,8 +69,8 @@ function sendJson(response, statusCode, payload) {
 }
 
 /*
-  Read the raw request body and return it as text.
-*/
+    Read the raw request body and return it as text.
+  */
 function readRequestBody(request) {
   return new Promise((resolve, reject) => {
     let body = "";
@@ -85,8 +88,8 @@ function readRequestBody(request) {
 }
 
 /*
-  Build an OpenAI-style response shape so the frontend can always parse it.
-*/
+    Build an OpenAI-style response shape so the frontend can always parse it.
+  */
 function buildChatCompletion(content, model = DEFAULT_MODEL, metadata = {}) {
   return {
     id: `chatcmpl_local_${Date.now()}`,
@@ -108,8 +111,8 @@ function buildChatCompletion(content, model = DEFAULT_MODEL, metadata = {}) {
 }
 
 /*
-  Fallback reply used when API key is missing or provider fails.
-*/
+    Fallback reply used when API key is missing or provider fails.
+  */
 function buildFallbackReply(messages, reason) {
   const latestUserMessage = [...messages]
     .reverse()
@@ -130,13 +133,13 @@ function buildFallbackReply(messages, reason) {
     "3. Add one new active at a time and patch-test first.",
     "",
     `Fallback reason: ${reason}`,
-    "For full AI answers, set OPENROUTER_API_KEY and restart server.js.",
+    "For full AI answers, set OPENAI_API_KEY and restart server.js.",
   ].join("\n");
 }
 
 /*
-  Send plain text with status code.
-*/
+    Send plain text with status code.
+  */
 function sendText(response, statusCode, message) {
   response.writeHead(statusCode, {
     "Content-Type": "text/plain; charset=utf-8",
@@ -146,9 +149,9 @@ function sendText(response, statusCode, message) {
 }
 
 /*
-  Serve frontend files from this project folder.
-  This keeps UI and API on one origin: http://localhost:8787
-*/
+    Serve frontend files from this project folder.
+    This keeps UI and API on one origin: http://localhost:8787
+  */
 function serveStaticFile(requestPath, response) {
   const normalizedPath = requestPath === "/" ? "/index.html" : requestPath;
   const safePath = path.normalize(normalizedPath).replace(/^\/+/, "");
@@ -200,7 +203,7 @@ const server = http.createServer(async (request, response) => {
     if (requestUrl.pathname === "/health") {
       sendJson(response, 200, {
         status: "ok",
-        mode: process.env.OPENROUTER_API_KEY ? "live-ai" : "fallback",
+        mode: process.env.OPENAI_API_KEY ? "live-ai" : "fallback",
       });
       return;
     }
@@ -238,7 +241,7 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
   const upstreamBody = {
     model: parsedBody.model || DEFAULT_MODEL,
     messages: parsedBody.messages,
@@ -247,7 +250,7 @@ const server = http.createServer(async (request, response) => {
 
   if (!apiKey) {
     const fallbackReply = buildChatCompletion(
-      buildFallbackReply(parsedBody.messages, "OPENROUTER_API_KEY is missing."),
+      buildFallbackReply(parsedBody.messages, "OPENAI_API_KEY is missing."),
       upstreamBody.model,
       { fallback: true },
     );
@@ -257,15 +260,13 @@ const server = http.createServer(async (request, response) => {
   }
 
   try {
-    console.log("Sending request to OpenAI-compatible provider...");
+    console.log("Sending request to OpenAI...");
 
     const upstreamResponse = await fetch(OPENAI_COMPAT_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
-        "HTTP-Referer": `http://localhost:${PORT}`,
-        "X-Title": "Loreal Routine Builder",
       },
       body: JSON.stringify(upstreamBody),
     });
@@ -303,7 +304,7 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
-    console.log("Provider Status:", upstreamResponse.status);
+    console.log("OpenAI Status:", upstreamResponse.status);
 
     sendJson(response, upstreamResponse.status, json);
   } catch (error) {
@@ -322,5 +323,5 @@ const server = http.createServer(async (request, response) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Free chatbot server running on http://localhost:${PORT}`);
+  console.log(`OpenAI chatbot server running on http://localhost:${PORT}`);
 });
