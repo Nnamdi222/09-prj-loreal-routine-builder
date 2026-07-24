@@ -5,43 +5,65 @@
   padding: 0;
 }
 
+:root {
+  --ink: #1b1b1b;
+  --soft-ink: #4b4641;
+  --paper: #f7f5f0;
+  --porcelain: #fffefa;
+  --line: #d8d2c8;
+  --red: #c8102e;
+  --deep-red: #851329;
+  --gold: #a87c3b;
+  --pale-gold: #eee4d0;
+}
+
 /* —— body + fonts —— */
 body {
   font-family: "Montserrat", Arial, Helvetica, sans-serif;
-  color: #333;
+  color: var(--ink);
   display: flex;
   justify-content: center;
-  background: #fff;
+  min-height: 100vh;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(rgba(27, 27, 27, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(27, 27, 27, 0.035) 1px, transparent 1px);
+  background-size: 36px 36px;
 }
 
 .page-wrapper {
   width: 90%;
-  max-width: 900px;
+  max-width: 1040px;
 }
 
 /* header */
 .site-header {
   text-align: center;
-  padding-top: 50px;
-  padding-bottom: 10px;
+  padding: 52px 24px 24px;
+  color: var(--porcelain);
+  background: var(--ink);
+  border-bottom: 5px solid var(--red);
 }
 
 .logo {
-  width: 250px;
-  margin-bottom: 15px;
+  width: min(260px, 78%);
+  margin-bottom: 18px;
+  filter: brightness(0) invert(1);
 }
 
 .site-title {
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 500;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
   margin-bottom: 10px;
 }
 
 /* category filter */
 .search-section {
-  margin: 30px 0;
+  margin: 28px 0 34px;
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: stretch;
   flex-wrap: wrap;
 }
@@ -49,12 +71,14 @@ body {
 .search-section input,
 .search-section select {
   flex: 1 1 260px;
-  padding: 16px;
-  font-size: 18px;
-  border: 2px solid #000;
-  border-radius: 8px;
-  background-color: white;
+  padding: 14px 16px;
+  font-size: 15px;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background-color: var(--porcelain);
   font-weight: 500;
+  color: var(--ink);
+  box-shadow: 4px 4px 0 rgba(27, 27, 27, 0.08);
 }
 
 .search-section input {
@@ -68,20 +92,22 @@ body {
 .search-section input:focus,
 .search-section select:focus {
   outline: none;
-  border-color: #666;
+  border-color: var(--red);
+  box-shadow: 4px 4px 0 rgba(200, 16, 46, 0.18);
 }
 
 .rtl-toggle {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 0 16px;
-  border: 2px solid #000;
-  border-radius: 8px;
-  font-size: 16px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  font-size: 13px;
   font-weight: 500;
-  background: #fff;
+  background: var(--porcelain);
   white-space: nowrap;
+  box-shadow: 4px 4px 0 rgba(27, 27, 27, 0.08);
 }
 
 .rtl-toggle input {
@@ -92,13 +118,18 @@ body {
 /* chat section */
 .chatbox {
   margin: 40px 0;
-  border: 2px solid #000;
-  border-radius: 8px;
-  padding: 26px;
+  border: 1px solid var(--ink);
+  border-top: 4px solid var(--red);
+  border-radius: 0;
+  padding: 28px;
+  background: var(--porcelain);
+  box-shadow: 8px 8px 0 rgba(27, 27, 27, 0.09);
 }
 
 .chatbox h2 {
-  font-size: 20px;
+  font-size: 18px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
   margin-bottom: 10px;
 }
 
@@ -106,7 +137,7 @@ body {
   display: inline-block;
   margin-bottom: 16px;
   padding: 6px 10px;
-  border-radius: 999px;
+  border-radius: 0;
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.2px;
@@ -120,9 +151,9 @@ body {
 }
 
 .chatbot-status.online {
-  color: #0b4d1a;
-  background: #e6f8ea;
-  border-color: #9dd8a9;
+  color: var(--deep-red);
+  background: #f9e7ea;
+  border-color: #e7a9b3;
 }
 
 .chatbot-status.fallback {
@@ -138,21 +169,23 @@ body {
 }
 
 .chat-window {
-  padding: 20px;
-  font-size: 18px;
+  padding: 18px;
+  font-size: 16px;
   line-height: 1.5;
   min-height: 250px;
   max-height: 420px;
   overflow-y: auto;
-  background: #fafafa;
+  background: #f4f0e9;
+  border: 1px solid var(--line);
   margin-bottom: 20px;
 }
 
 .chat-message {
   margin-bottom: 16px;
   padding: 14px;
-  border-radius: 8px;
-  background: #fff;
+  border-radius: 0;
+  background: var(--porcelain);
+  border-left: 3px solid var(--gold);
 }
 
 .chat-message strong {
@@ -165,7 +198,7 @@ body {
 }
 
 .chat-message a {
-  color: #0057b8;
+  color: var(--deep-red);
   text-decoration: underline;
   word-break: break-word;
 }
@@ -175,8 +208,8 @@ body {
   width: 100%;
   text-align: center;
   padding: 40px;
-  color: #666;
-  font-size: 18px;
+  color: var(--soft-ink);
+  font-size: 15px;
 }
 
 /* input row */
@@ -189,20 +222,20 @@ body {
 .chat-form input {
   flex: 1;
   padding: 12px;
-  font-size: 18px;
+  font-size: 16px;
   border: none;
-  border-bottom: 2px solid #ccc;
-  background: transparent;
+  border-bottom: 2px solid var(--line);
+  background: var(--porcelain);
 }
 
 .chat-form input:focus {
   outline: none;
-  border-bottom-color: #000;
+  border-bottom-color: var(--red);
 }
 
 .chat-form button {
-  font-size: 18px;
-  background: #000;
+  font-size: 17px;
+  background: var(--red);
   color: #fff;
   border: none;
   padding: 12px;
@@ -212,15 +245,18 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.3s;
+  transition:
+    background 0.2s,
+    transform 0.2s;
 }
 
 .chat-form button:hover {
-  background: #666666;
+  background: var(--deep-red);
+  transform: translateY(-1px);
 }
 
 .chat-form button:focus {
-  outline: 2px solid #000;
+  outline: 2px solid var(--red);
   outline-offset: 2px;
 }
 
@@ -242,7 +278,7 @@ body {
   margin: 60px 0 40px;
   text-align: center;
   font-size: 14px;
-  color: #666;
+  color: var(--soft-ink);
 }
 
 .site-footer nav {
@@ -251,31 +287,32 @@ body {
 
 .site-footer a {
   margin: 0 8px;
-  color: #000;
+  color: var(--ink);
   text-decoration: none;
 }
 
 .site-footer a:hover {
-  color: #666666;
+  color: var(--red);
 }
 
 /* products grid */
 .products-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 20px;
+  gap: 16px;
   margin: 30px 0;
 }
 
 .product-card {
   flex: 0 1 calc(33.333% - 14px);
-  border: 2px solid #ccc;
+  border: 1px solid var(--line);
   padding: 15px;
-  border-radius: 8px;
+  border-radius: 0;
   display: flex;
   gap: 15px;
   min-height: 160px;
   cursor: pointer;
+  background: var(--porcelain);
   transition:
     border-color 0.2s,
     box-shadow 0.2s,
@@ -284,15 +321,15 @@ body {
 
 .product-card:hover,
 .product-card:focus-visible {
-  border-color: #000;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  border-color: var(--red);
+  box-shadow: 5px 5px 0 rgba(200, 16, 46, 0.16);
   transform: translateY(-2px);
 }
 
 .product-card.selected {
-  border-color: #000;
-  background: #f4f4f4;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-color: var(--ink);
+  background: var(--pale-gold);
+  box-shadow: 5px 5px 0 rgba(168, 124, 59, 0.24);
 }
 
 .product-card img {
@@ -311,13 +348,13 @@ body {
 }
 
 .product-card h3 {
-  font-size: 16px;
+  font-size: 15px;
   margin-bottom: 8px;
 }
 
 .product-card p {
   font-size: 14px;
-  color: #666;
+  color: var(--soft-ink);
 }
 
 .product-brand {
@@ -334,11 +371,15 @@ body {
 .product-select-btn,
 .secondary-btn,
 #selectedProductsList button {
-  border: 1px solid #000;
-  background: #fff;
-  border-radius: 999px;
-  padding: 10px 14px;
+  border: 1px solid var(--ink);
+  background: var(--porcelain);
+  border-radius: 0;
+  padding: 9px 12px;
   cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
 }
 
 .product-select-btn {
@@ -347,7 +388,7 @@ body {
 }
 
 .product-card.selected .product-select-btn {
-  background: #000;
+  background: var(--ink);
   color: #fff;
 }
 
@@ -370,13 +411,18 @@ body {
 /* selected products */
 .selected-products {
   margin: 40px 0;
-  padding: 20px;
-  border: 2px solid #000;
-  border-radius: 8px;
+  padding: 24px;
+  border: 1px solid var(--ink);
+  border-left: 5px solid var(--gold);
+  border-radius: 0;
+  background: var(--porcelain);
+  box-shadow: 8px 8px 0 rgba(27, 27, 27, 0.09);
 }
 
 .selected-products h2 {
-  font-size: 20px;
+  font-size: 18px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
   margin-bottom: 20px;
 }
 
@@ -400,18 +446,23 @@ body {
   width: 100%;
   margin-top: 20px;
   padding: 16px;
-  font-size: 18px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
   color: #fff;
-  background: #000;
+  background: var(--red);
   border: none;
-  border-radius: 8px;
+  border-radius: 0;
   cursor: pointer;
-  transition: background 0.3s;
+  transition:
+    background 0.2s,
+    transform 0.2s;
 }
 
 .generate-btn:hover {
-  background: #666;
+  background: var(--deep-red);
+  transform: translateY(-1px);
 }
 
 .generate-btn i {
